@@ -89,8 +89,10 @@ export const authOptions = {
             return null
           }
 
-          if (credentials.username.password < 3) {
-            return null
+          // Was `credentials.username.password < 3`, which reads a property
+          // that does not exist — so the password length was never checked.
+          if (credentials.password.length < 3) {
+            return null;
           }
 
           const user = await db.user.create({

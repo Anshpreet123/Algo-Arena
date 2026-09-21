@@ -41,13 +41,19 @@ export const getProblem = async (problemId: string, contestId?: string) => {
 };
 
 export const getProblems = async () => {
-  const problems = await db.problem.findMany({
-    where: {
-      hidden: false,
-    },
-    include: {
-      defaultCode: true,
+  // The listing renders a title, a blurb, a difficulty and a solve count.
+  // It used to `include: { defaultCode: true }`, which pulled the full
+  // boilerplate for all four languages of every problem into a page that
+  // never shows a single line of it.
+  return db.problem.findMany({
+    where: { hidden: false },
+    orderBy: [{ difficulty: "asc" }, { title: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      difficulty: true,
+      solved: true,
     },
   });
-  return problems;
 };
