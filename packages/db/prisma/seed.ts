@@ -1,34 +1,26 @@
 import prismaClient from "../src";
 import { LANGUAGE_MAPPING } from "@repo/common/language";
 import { addProblemsInDB } from "./updateQuestion";
-import languages from "../src/languages";
 
-(async () => {
-  try {
-    await prismaClient.language.createMany({
-      data: Object.keys(LANGUAGE_MAPPING).map((language) => ({
-        id: LANGUAGE_MAPPING[language].internal,
-        name: language,
-        judge0Id: LANGUAGE_MAPPING[language].judge0,
-      })),
-    })
-  } catch (e) {
-    console.log("Languages already persist in the DB!");
+async function main() {
+  // Languages are a fixed lookup table, so upsert instead of failing on rerun.
+  for (const [id, language] of Object.entries(LANGUAGE_MAPPING)) {
+    await prismaClient.language.upsert({
+      where: { id: language.internal },
+      update: { name: id },
+      create: { id: language.internal, name: id },
+    });
+  }
+  console.log(`Seeded ${Object.keys(LANGUAGE_MAPPING).length} languages`);
 
-  }
-})();
-(async () => {
-  try {
-    await prismaClient.languages.createMany({ data: languages })
-  }
-  catch (e) {
-    console.log("Languages2 already persist in the DB!");
-  }
+  await addProblemsInDB();
 }
-)();
-try {
-  addProblemsInDB();
-}
-catch (e) {
-  console.log("Data already persist in the DB!")
-}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prismaClient.$disconnect();
+  });

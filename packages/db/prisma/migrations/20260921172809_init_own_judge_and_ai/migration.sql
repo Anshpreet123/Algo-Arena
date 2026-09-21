@@ -2,6 +2,12 @@
 CREATE TYPE "SubmissionResult" AS ENUM ('AC', 'REJECTED', 'PENDING');
 
 -- CreateEnum
+CREATE TYPE "TestcaseStatus" AS ENUM ('AC', 'WA', 'TLE', 'MLE', 'RE', 'CE', 'IE');
+
+-- CreateEnum
+CREATE TYPE "AiKind" AS ENUM ('HINT', 'REVIEW', 'EXPLAIN');
+
+-- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER');
 
 -- CreateEnum
@@ -82,21 +88,39 @@ CREATE TABLE "Submission" (
     "problemId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "code" TEXT NOT NULL,
+    "language" TEXT NOT NULL DEFAULT 'js',
     "activeContestId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3),
     "status" "SubmissionResult" NOT NULL DEFAULT 'PENDING',
     "memory" INTEGER,
     "time" DOUBLE PRECISION,
+    "compileOutput" TEXT,
 
     CONSTRAINT "Submission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TestcaseResult" (
+    "id" TEXT NOT NULL,
+    "submissionId" TEXT NOT NULL,
+    "index" INTEGER NOT NULL,
+    "status" "TestcaseStatus" NOT NULL,
+    "timeMs" INTEGER NOT NULL DEFAULT 0,
+    "memoryKb" INTEGER NOT NULL DEFAULT 0,
+    "stdout" TEXT NOT NULL DEFAULT '',
+    "stderr" TEXT NOT NULL DEFAULT '',
+    "expectedOutput" TEXT NOT NULL DEFAULT '',
+    "input" TEXT NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TestcaseResult_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Language" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "judge0Id" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -127,80 +151,47 @@ CREATE TABLE "ContestPoints" (
 );
 
 -- CreateTable
-CREATE TABLE "ar_internal_metadata" (
-    "key" VARCHAR NOT NULL,
-    "value" VARCHAR,
-    "created_at" TIMESTAMP(6) NOT NULL,
-    "updated_at" TIMESTAMP(6) NOT NULL,
+CREATE TABLE "AiHint" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "problemId" TEXT NOT NULL,
+    "contestId" TEXT NOT NULL DEFAULT '',
+    "tier" INTEGER NOT NULL,
+    "content" TEXT NOT NULL,
+    "penaltyPct" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ar_internal_metadata_pkey" PRIMARY KEY ("key")
+    CONSTRAINT "AiHint_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "clients" (
-    "id" VARCHAR NOT NULL,
+CREATE TABLE "AiAnalysis" (
+    "id" TEXT NOT NULL,
+    "submissionId" TEXT NOT NULL,
+    "kind" "AiKind" NOT NULL,
+    "content" TEXT NOT NULL,
+    "model" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "clients_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "AiAnalysis_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "languages" (
-    "id" SERIAL NOT NULL,
-    "name" VARCHAR,
-    "compile_cmd" VARCHAR,
-    "run_cmd" VARCHAR,
-    "source_file" VARCHAR,
-    "is_archived" BOOLEAN DEFAULT false,
-
-    CONSTRAINT "languages_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "schema_migrations" (
-    "version" VARCHAR NOT NULL,
-
-    CONSTRAINT "schema_migrations_pkey" PRIMARY KEY ("version")
-);
-
--- CreateTable
-CREATE TABLE "submissions" (
-    "id" SERIAL NOT NULL,
-    "source_code" TEXT,
-    "language_id" INTEGER,
-    "stdin" TEXT,
-    "expected_output" TEXT,
-    "stdout" TEXT,
-    "status_id" INTEGER,
-    "created_at" TIMESTAMP(6),
-    "finished_at" TIMESTAMP(6),
-    "time" DECIMAL,
-    "memory" INTEGER,
-    "stderr" TEXT,
-    "token" VARCHAR,
-    "number_of_runs" INTEGER,
-    "cpu_time_limit" DECIMAL,
-    "cpu_extra_time" DECIMAL,
-    "wall_time_limit" DECIMAL,
-    "memory_limit" INTEGER,
-    "stack_limit" INTEGER,
-    "max_processes_and_or_threads" INTEGER,
-    "enable_per_process_and_thread_time_limit" BOOLEAN,
-    "enable_per_process_and_thread_memory_limit" BOOLEAN,
-    "max_file_size" INTEGER,
-    "compile_output" TEXT,
-    "exit_code" INTEGER,
-    "exit_signal" INTEGER,
-    "message" TEXT,
-    "wall_time" DECIMAL,
-    "compiler_options" VARCHAR,
-    "command_line_arguments" VARCHAR,
-    "redirect_stderr_to_stdout" BOOLEAN,
-    "callback_url" VARCHAR,
-    "additional_files" BYTEA,
-    "enable_network" BOOLEAN,
+CREATE TABLE "AiInteraction" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "problemId" TEXT,
     "submissionId" TEXT,
+    "kind" "AiKind" NOT NULL,
+    "model" TEXT NOT NULL,
+    "inputTokens" INTEGER NOT NULL DEFAULT 0,
+    "outputTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheReadTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheWriteTokens" INTEGER NOT NULL DEFAULT 0,
+    "latencyMs" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "submissions_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "AiInteraction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -213,7 +204,10 @@ CREATE UNIQUE INDEX "Problem_slug_key" ON "Problem"("slug");
 CREATE UNIQUE INDEX "DefaultCode_problemId_languageId_key" ON "DefaultCode"("problemId", "languageId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Language_judge0Id_key" ON "Language"("judge0Id");
+CREATE INDEX "Submission_userId_problemId_idx" ON "Submission"("userId", "problemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TestcaseResult_submissionId_index_key" ON "TestcaseResult"("submissionId", "index");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ContestSubmission_userId_problemId_contestId_key" ON "ContestSubmission"("userId", "problemId", "contestId");
@@ -222,10 +216,13 @@ CREATE UNIQUE INDEX "ContestSubmission_userId_problemId_contestId_key" ON "Conte
 CREATE UNIQUE INDEX "ContestPoints_contestId_userId_key" ON "ContestPoints"("contestId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "submissions_token_key" ON "submissions"("token");
+CREATE UNIQUE INDEX "AiHint_userId_problemId_contestId_tier_key" ON "AiHint"("userId", "problemId", "contestId", "tier");
 
 -- CreateIndex
-CREATE INDEX "index_submissions_on_token" ON "submissions"("token");
+CREATE UNIQUE INDEX "AiAnalysis_submissionId_kind_key" ON "AiAnalysis"("submissionId", "kind");
+
+-- CreateIndex
+CREATE INDEX "AiInteraction_userId_createdAt_idx" ON "AiInteraction"("userId", "createdAt");
 
 -- AddForeignKey
 ALTER TABLE "ContestProblem" ADD CONSTRAINT "ContestProblem_contestId_fkey" FOREIGN KEY ("contestId") REFERENCES "Contest"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -249,6 +246,9 @@ ALTER TABLE "Submission" ADD CONSTRAINT "Submission_userId_fkey" FOREIGN KEY ("u
 ALTER TABLE "Submission" ADD CONSTRAINT "Submission_problemId_fkey" FOREIGN KEY ("problemId") REFERENCES "Problem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "TestcaseResult" ADD CONSTRAINT "TestcaseResult_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ContestSubmission" ADD CONSTRAINT "ContestSubmission_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -261,4 +261,13 @@ ALTER TABLE "ContestSubmission" ADD CONSTRAINT "ContestSubmission_contestId_fkey
 ALTER TABLE "ContestPoints" ADD CONSTRAINT "ContestPoints_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "submissions" ADD CONSTRAINT "submissions_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "AiHint" ADD CONSTRAINT "AiHint_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiHint" ADD CONSTRAINT "AiHint_problemId_fkey" FOREIGN KEY ("problemId") REFERENCES "Problem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiAnalysis" ADD CONSTRAINT "AiAnalysis_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "Submission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiInteraction" ADD CONSTRAINT "AiInteraction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

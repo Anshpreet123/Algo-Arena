@@ -19,6 +19,8 @@ model User {
   role               UserRole            @default(USER)
   submissions        Submission[]
   contestPoints      ContestPoints[]
+  aiHints            AiHint[]
+  aiInteractions     AiInteraction[]
 }
 
 model Contest {
@@ -64,6 +66,7 @@ model Problem {
   contests           ContestProblem[]
   submissions        Submission[]
   defaultCode        DefaultCode[]
+  aiHints            AiHint[]
 }
 
 model DefaultCode {
@@ -84,22 +87,50 @@ model Submission {
   problemId       String
   userId          String
   code            String
+  /// Which language the code was written in, e.g. "cpp". Needed so the AI
+  /// features can reason about the submission without re-deriving it.
+  language        String           @default("js")
   activeContestId String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime?        @updatedAt
   status          SubmissionResult @default(PENDING)
+  /// Peak memory across testcases, in kilobytes.
   memory          Int?
+  /// Slowest testcase, in milliseconds.
   time            Float?
-  testcases       submissions[]
+  /// Compiler output, when the submission failed to build.
+  compileOutput   String?
+  testcases       TestcaseResult[]
   activeContest   Contest?         @relation(fields: [activeContestId], references: [id])
   user            User             @relation(fields: [userId], references: [id])
   problem         Problem          @relation(fields: [problemId], references: [id])
+  aiAnalyses      AiAnalysis[]
+
+  @@index([userId, problemId])
+}
+
+/// One row per testcase run by the judge service. Replaces the Judge0
+/// `submissions` table this schema used to mirror.
+model TestcaseResult {
+  id             String         @id @default(cuid())
+  submissionId   String
+  index          Int
+  status         TestcaseStatus
+  timeMs         Int            @default(0)
+  memoryKb       Int            @default(0)
+  stdout         String         @default("")
+  stderr         String         @default("")
+  expectedOutput String         @default("")
+  input          String         @default("")
+  createdAt      DateTime       @default(now())
+  submission     Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, index])
 }
 
 model Language {
   id          Int           @id @default(autoincrement())
   name        String
-  judge0Id    Int           @unique
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   DefaultCode DefaultCode[]
@@ -130,10 +161,80 @@ model ContestPoints {
   @@unique([contestId, userId])
 }
 
+/// A hint the user unlocked. Hints are tiered and cost contest points, so the
+/// row is the receipt: it is what the scorer reads when awarding points.
+model AiHint {
+  id            String   @id @default(cuid())
+  userId        String
+  problemId     String
+  /// Empty string when the hint was taken outside a contest. A real NULL would
+  /// defeat the unique constraint, since NULLs never collide in Postgres.
+  contestId     String   @default("")
+  tier          Int
+  content       String
+  /// Fraction of the problem's points forfeited by unlocking this hint.
+  penaltyPct    Int      @default(0)
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  problem       Problem  @relation(fields: [problemId], references: [id])
+
+  @@unique([userId, problemId, contestId, tier])
+}
+
+/// Cached AI output for one submission, so re-opening a submission does not
+/// pay for the same tokens twice.
+model AiAnalysis {
+  id           String     @id @default(cuid())
+  submissionId String
+  kind         AiKind
+  content      String
+  model        String
+  createdAt    DateTime   @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, kind])
+}
+
+/// Token and latency accounting for every AI call, so the cost of the
+/// features is observable rather than a surprise on the bill.
+model AiInteraction {
+  id                String   @id @default(cuid())
+  userId            String
+  problemId         String?
+  submissionId      String?
+  kind              AiKind
+  model             String
+  inputTokens       Int      @default(0)
+  outputTokens      Int      @default(0)
+  cacheReadTokens   Int      @default(0)
+  cacheWriteTokens  Int      @default(0)
+  latencyMs         Int      @default(0)
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
 enum SubmissionResult {
   AC
   REJECTED
   PENDING
+}
+
+enum TestcaseStatus {
+  AC
+  WA
+  TLE
+  MLE
+  RE
+  CE
+  IE
+}
+
+enum AiKind {
+  HINT
+  REVIEW
+  EXPLAIN
 }
 
 enum UserRole {
@@ -145,69 +246,4 @@ enum Difficulty {
   EASY
   MEDIUM
   HARD
-}
-
-model ar_internal_metadata {
-  key        String   @id @db.VarChar
-  value      String?  @db.VarChar
-  created_at DateTime @db.Timestamp(6)
-  updated_at DateTime @db.Timestamp(6)
-}
-
-model clients {
-  id String @id @db.VarChar
-}
-
-model languages {
-  id          Int      @id @default(autoincrement())
-  name        String?  @db.VarChar
-  compile_cmd String?  @db.VarChar
-  run_cmd     String?  @db.VarChar
-  source_file String?  @db.VarChar
-  is_archived Boolean? @default(false)
-}
-
-model schema_migrations {
-  version String @id @db.VarChar
-}
-
-model submissions {
-  id                                         Int         @id @default(autoincrement())
-  source_code                                String?
-  language_id                                Int?
-  stdin                                      String?
-  expected_output                            String?
-  stdout                                     String?
-  status_id                                  Int?
-  created_at                                 DateTime?   @db.Timestamp(6)
-  finished_at                                DateTime?   @db.Timestamp(6)
-  time                                       Decimal?    @db.Decimal
-  memory                                     Int?
-  stderr                                     String?
-  token                                      String?     @db.VarChar @unique
-  number_of_runs                             Int?
-  cpu_time_limit                             Decimal?    @db.Decimal
-  cpu_extra_time                             Decimal?    @db.Decimal
-  wall_time_limit                            Decimal?    @db.Decimal
-  memory_limit                               Int?
-  stack_limit                                Int?
-  max_processes_and_or_threads               Int?
-  enable_per_process_and_thread_time_limit   Boolean?
-  enable_per_process_and_thread_memory_limit Boolean?
-  max_file_size                              Int?
-  compile_output                             String?
-  exit_code                                  Int?
-  exit_signal                                Int?
-  message                                    String?
-  wall_time                                  Decimal?    @db.Decimal
-  compiler_options                           String?     @db.VarChar
-  command_line_arguments                     String?     @db.VarChar
-  redirect_stderr_to_stdout                  Boolean?
-  callback_url                               String?     @db.VarChar
-  additional_files                           Bytes?
-  enable_network                             Boolean?
-  Submission                                 Submission? @relation(fields: [submissionId], references: [id])
-  submissionId                               String?
-
-  @@index([token], map: "index_submissions_on_token")
 }

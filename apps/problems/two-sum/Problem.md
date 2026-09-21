@@ -1,5 +1,7 @@
 ## Two sum
 
+Difficulty: EASY
+
 Find the sum of two given elements. Both the numbers will always be 0 or postiive.
 
 #### Test case 1
