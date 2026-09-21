@@ -18,7 +18,7 @@ export async function Problems() {
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-2">Popular Problems</h2>
           <p className="text-gray-500 dark:text-gray-400">
-            Check out the most popular programming problems on Code100x.
+            Pick a problem, write a solution, and let the judge run it against every testcase.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -31,21 +31,44 @@ export async function Problems() {
   );
 }
 
+const DIFFICULTY_STYLES: Record<string, string> = {
+  EASY: "text-green-600 dark:text-green-500",
+  MEDIUM: "text-amber-600 dark:text-amber-500",
+  HARD: "text-red-600 dark:text-red-500",
+};
+
+/** One-line summary, taken from the problem statement itself. */
+function blurb(description: string): string {
+  const firstProse = description
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0 && !line.startsWith("#"));
+
+  if (!firstProse) return "No description yet.";
+  return firstProse.length > 90 ? `${firstProse.slice(0, 90)}...` : firstProse;
+}
+
 function ProblemCard({ problem }: { problem: any }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>{problem.title}</CardTitle>
-        <CardDescription>Easy problem for beginners</CardDescription>
+        <CardDescription>{blurb(problem.description ?? "")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-gray-500 dark:text-gray-400">Difficulty</p>
-            <p>{problem.difficulty}</p>
+            <p
+              className={`font-medium ${
+                DIFFICULTY_STYLES[problem.difficulty] ?? ""
+              }`}
+            >
+              {problem.difficulty}
+            </p>
           </div>
           <div>
-            <p className="text-gray-500 dark:text-gray-400">Submissions</p>
+            <p className="text-gray-500 dark:text-gray-400">Solved</p>
             <p>{problem.solved}</p>
           </div>
         </div>

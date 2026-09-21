@@ -1,73 +1,43 @@
-""
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { SiInstagram, SiYoutube, SiX } from "@icons-pack/react-simple-icons";
-import Image from "next/image";
-import playstore from "../public/playstore.png";
-import Logo from "../public/logo.png";
+import { SiGithub } from "@icons-pack/react-simple-icons";
+
+const REPO = "https://github.com/Anshpreet123/Algo-Arena";
 
 export const Footer = () => {
   return (
-<div className="bottom-0 w-full p-4 bg-gray-900 dark:bg-slate-900 px-6 lg:px-36 print:hidden">
-      <div className="md:max-w-screen-2xl mt-4 mx-auto flex flex-row items-start justify-between w-full">
-        <div className="flex flex-col md:flex-row w-3/5 md:justify-between">
-          <div className=" ml-21 ">
-            <Link href={"https://app.100xdevs.com/"} target="_blank" rel="noopener noreferrer">
-              <Image src={Logo} alt="Logo" width={300} height={200} className="hover:opacity-80" />
-            </Link>
+    <footer className="w-full border-t bg-gray-50 dark:bg-gray-900 print:hidden">
+      <div className="max-w-screen-2xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="text-gray-400">&lt;/&gt;</span>
+            <span>Algo Arena</span>
           </div>
-          <div className="flex flex-col justify-center my-8 md:my-0">
-            <h3 className="font-semibold text-neutral-100 mb-4">Quick Links</h3>
-            <Link
-              href={"https://app.100xdevs.com/"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-blue-500 text-neutral-200"
-            >
-              100xdevs
-            </Link>
-            <Link
-              href={"https://github.com/code100x/daily-code/"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-blue-500 text-neutral-200"
-            >
-              GitHub
-            </Link>
-            <Link href={"/tnc"} className="hover:text-blue-500 text-neutral-200">
-              Terms & Conditions
-            </Link>
-            <Link href={"/privacy-policy"} className="hover:text-blue-500 text-neutral-200">
-              Privacy Policy
-            </Link>
-          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-md">
+            A competitive programming platform with a self-hosted Docker
+            sandbox for code execution and an AI coach for hints and reviews.
+          </p>
         </div>
 
-        <div className="flex flex-col justify-center">
+        <div className="flex items-center gap-6">
           <Link
-            href={"https://play.google.com/store/apps/details?id=com.hundredx.devs"}
+            href={`${REPO}#readme`}
             target="_blank"
-            className="hover:text-blue-500 font-semibold  text-neutral-200 mb-4"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           >
-            Download App
-            <Image className="shadow-md mt-2" src={playstore} alt={"playstore"} height={50} width={150} />
+            Docs
           </Link>
-          <div>
-            <h4 className="text-neutral-200 font-semibold mb-2">Follow us</h4>
-            <div className="flex gap-x-2">
-              <Link target="_blank" rel="noopener noreferrer" href={"https://twitter.com/kirat_tw"}>
-                <SiX className="text-white hover:text-blue-500" />
-              </Link>
-              <Link target="_blank" rel="noopener noreferrer" href={"https://www.instagram.com/kirat_ins/"}>
-                <SiInstagram className="text-white hover:text-blue-500" />
-              </Link>
-              <Link target="_blank" rel="noopener noreferrer" href={"https://www.youtube.com/@harkirat1"}>
-                <SiYoutube className="text-white hover:text-blue-500" />
-              </Link>
-            </div>
-          </div>
+          <Link
+            href={REPO}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Source on GitHub"
+            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
+            <SiGithub className="h-5 w-5" />
+          </Link>
         </div>
       </div>
-    </div>
+    </footer>
   );
 };

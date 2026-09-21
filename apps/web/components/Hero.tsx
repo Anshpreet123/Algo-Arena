@@ -7,12 +7,12 @@ export function Hero() {
         <div className="grid md:grid-cols-2 gap-8 md:gap-12">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              Welcome to Code100x
+              Algo Arena
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mb-6">
-              Code100x is a platform for holding programming contests.
-              Participate in challenges, solve problems, and climb the
-              leaderboard.
+              A competitive programming platform with its own sandboxed
+              judge and an AI coach. Solve problems in four languages, run
+              contests, and get your accepted code reviewed.
             </p>
             <div className="flex gap-4 pt-16">
               <Link
@@ -33,10 +33,10 @@ export function Hero() {
           </div>
           <div className="hidden md:block">
             <img
-              src="https://ideogram.ai/assets/image/balanced/response/OZ93FYuyRpmpgNxX0fRMSw"
+              src="/circles.svg"
               width="600"
               height="400"
-              alt="Code100x"
+              alt="Algo Arena"
               className="rounded-lg"
             />
           </div>

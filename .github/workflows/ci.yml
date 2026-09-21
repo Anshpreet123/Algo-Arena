@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The client has to exist before anything that imports @repo/db compiles.
+      - run: pnpm --filter @repo/db db:generate
+
+      - name: Typecheck
+        run: |
+          pnpm --filter web exec tsc --noEmit
+          pnpm --filter judge exec tsc --noEmit
+
+      - name: Build
+        run: pnpm --filter web build
+        env:
+          # Prisma needs a syntactically valid URL at build time; nothing connects.
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
