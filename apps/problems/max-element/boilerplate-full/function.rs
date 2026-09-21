@@ -1,11 +1,12 @@
-use std::fs::read_to_string;
-use std::io::{self};
+use std::io::{self, Read};
 use std::str::Lines;
 
 ##USER_CODE_HERE##
 
 fn main() -> io::Result<()> {
-  let input = read_to_string("/dev/problems/max-element/tests/inputs/##INPUT_FILE_INDEX##.txt")?;
+  // The judge pipes the testcase in on stdin.
+  let mut input = String::new();
+  io::stdin().read_to_string(&mut input)?;
   let mut lines = input.lines();
   let size_arr: usize = lines.next().and_then(|line| line.parse().ok()).unwrap_or(0);
 	let arr: Vec<i32> = parse_input(lines, size_arr);

@@ -1,13 +1,18 @@
 export const LANGUAGE_MAPPING: {
   [key: string]: {
-    judge0: number;
+    /** Primary key in the Language table, referenced by DefaultCode. */
     internal: number;
     name: string;
+    /** Monaco editor language id. */
     monaco: string;
+    /** File extension used for boilerplate lookups under apps/problems. */
+    extension: string;
   };
 } = {
-  js: { judge0: 63, internal: 1, name: "Javascript", monaco: "javascript" },
-  cpp: { judge0: 54, internal: 2, name: "C++", monaco: "cpp" },
-  rs: { judge0: 73, internal: 3, name: "Rust", monaco: "rust" },
-  java: { judge0: 62, internal: 4, name: "Java", monaco: "java" },
+  js: { internal: 1, name: "Javascript", monaco: "javascript", extension: "js" },
+  cpp: { internal: 2, name: "C++", monaco: "cpp", extension: "cpp" },
+  rs: { internal: 3, name: "Rust", monaco: "rust", extension: "rs" },
+  java: { internal: 4, name: "Java", monaco: "java", extension: "java" },
 };
+
+export type SupportedLanguage = keyof typeof LANGUAGE_MAPPING;

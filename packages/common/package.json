@@ -2,7 +2,8 @@
   "name": "@repo/common",
   "exports": {
     "./language": "./language/index.ts",
-    "./zod": "./zod/index.ts"
+    "./zod": "./zod/index.ts",
+    "./judge": "./judge/index.ts"
   },
   "version": "1.0.0",
   "description": "",

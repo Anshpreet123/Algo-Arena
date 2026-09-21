@@ -7,16 +7,17 @@ public class Main {
     ##USER_CODE_HERE##
 
     public static void main(String[] args) {
-        String filePath = "/dev/problems/two-sum/tests/inputs/##INPUT_FILE_INDEX##.txt"; 
-        List<String> lines = readLinesFromFile(filePath);
+        // The judge pipes the testcase in on stdin.
+        List<String> lines = readLinesFromStdin();
         int num1 = Integer.parseInt(lines.get(0).trim());
   int num2 = Integer.parseInt(lines.get(1).trim());
         int result = sum(num1, num2);
         System.out.println(result);
     }
-    public static List<String> readLinesFromFile(String filePath) {
+
+    public static List<String> readLinesFromStdin() {
         List<String> lines = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in))) {
             String line;
             while ((line = br.readLine()) != null) {
                 lines.add(line);

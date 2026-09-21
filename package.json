@@ -9,12 +9,15 @@
     "dev:docker": "pnpm run prisma:docker && yarn dev",
     "prisma:docker": "cd packages/db && pnpm prisma db push --force-reset && pnpm prisma db seed",
     "start:web": "cd apps/web && pnpm run start",
-    "start:sweeper": "cd apps/sweeper && pnpm run start"
+    "judge:doctor": "pnpm --filter judge doctor",
+    "db:reset": "cd packages/db && prisma migrate reset --force",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "prettier": "^3.2.5",
+    "puppeteer-core": "^25.11.0",
     "turbo": "latest"
   },
   "engines": {

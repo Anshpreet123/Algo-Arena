@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -8,12 +7,13 @@
 ##USER_CODE_HERE##
 
 int main() {
-  std::ifstream file("/dev/problems/two-sum/tests/inputs/##INPUT_FILE_INDEX##.txt");
+  // The judge pipes the testcase in on stdin. It used to be read from a file
+  // inside the Judge0 container, which is why this harness once needed the
+  // problems directory bind-mounted into the sandbox.
   std::vector<std::string> lines;
   std::string line;
-  while (std::getline(file, line)) lines.push_back(line);
+  while (std::getline(std::cin, line)) lines.push_back(line);
 
-  file.close();
   int num1;
   std::istringstream(lines[0]) >> num1;
   int num2;

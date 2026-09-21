@@ -53,7 +53,10 @@ export class FullProblemDefinitionParser {
     const inputReads = this.inputFields
       .map((field, index) => {
         if (field.type.startsWith("list<")) {
-          return `int size_${field.name};\n  std::istringstream(lines[${index}]) >> size_${field.name};\n  ${this.mapTypeToCpp(field.type)} ${field.name}(size_${field.name});\n  if(!size_${field.name}==0) {\n  \tstd::istringstream iss(lines[${index + 1}]);\n  \tfor (int i=0; i < size_arr; i++) iss >> arr[i];\n  }`;
+          // Field names must be interpolated here; this branch used to
+          // hardcode `arr`, so it only worked for fields that happened to
+          // be called arr.
+          return `int size_${field.name};\n  std::istringstream(lines[${index}]) >> size_${field.name};\n  ${this.mapTypeToCpp(field.type)} ${field.name}(size_${field.name});\n  if (size_${field.name} != 0) {\n  \tstd::istringstream iss_${field.name}(lines[${index + 1}]);\n  \tfor (int i = 0; i < size_${field.name}; i++) iss_${field.name} >> ${field.name}[i];\n  }`;
         } else {
           return `${this.mapTypeToCpp(field.type)} ${field.name};\n  std::istringstream(lines[${index}]) >> ${field.name};`;
         }
@@ -64,7 +67,6 @@ export class FullProblemDefinitionParser {
     const outputWrite = `std::cout << result << std::endl;`;
 
     return `#include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -73,12 +75,13 @@ export class FullProblemDefinitionParser {
 ##USER_CODE_HERE##
 
 int main() {
-  std::ifstream file("/dev/problems/${this.problemName.toLowerCase().replace(" ", "-")}/tests/inputs/##INPUT_FILE_INDEX##.txt");
+  // The judge pipes the testcase in on stdin. It used to be read from a file
+  // inside the Judge0 container, which is why this harness once needed the
+  // problems directory bind-mounted into the sandbox.
   std::vector<std::string> lines;
   std::string line;
-  while (std::getline(file, line)) lines.push_back(line);
+  while (std::getline(std::cin, line)) lines.push_back(line);
 
-  file.close();
   ${inputReads}
   ${functionCall}
   ${outputWrite}
@@ -97,12 +100,23 @@ int main() {
         javaType = inputType ? inputType[1] : 'Integer';
         let parseToType = (javaType === 'Integer') ? 'Int' : javaType;
 
-        return `int size_${field.name} = Integer.parseInt(lines.get(${inputReadIndex++}).trim());\n
-        ${this.mapTypeToJava(field.type)} ${field.name} = new ArrayList<>(size_${field.name});\n
-        String[] inputStream = lines.get(${inputReadIndex++}).trim().split("\\s+");\n
-        for (String inputChar : inputStream)  {\n
-          ${field.name}.add(${javaType}.parse${parseToType}(inputChar));\n
-        }\n`;
+        const sizeLine = inputReadIndex++;
+        const valuesLine = inputReadIndex++;
+
+        // The values line is only read when the list is non-empty: a size of
+        // 0 means the testcase has no second line at all, and reading it
+        // unconditionally threw IndexOutOfBounds.
+        // The split pattern is also double-escaped on purpose — "\s+" in
+        // generated Java source is a space-escape, not the regex.
+        return `int size_${field.name} = Integer.parseInt(lines.get(${sizeLine}).trim());
+        ${this.mapTypeToJava(field.type)} ${field.name} = new ArrayList<>(Math.max(size_${field.name}, 0));
+        if (size_${field.name} > 0 && lines.size() > ${valuesLine}) {
+            for (String token_${field.name} : lines.get(${valuesLine}).trim().split("\\\\s+")) {
+                if (!token_${field.name}.isEmpty()) {
+                    ${field.name}.add(${javaType}.parse${parseToType}(token_${field.name}));
+                }
+            }
+        }`;
       } else {
         let javaType = this.mapTypeToJava(field.type);
         if(javaType === 'int'){
@@ -133,15 +147,16 @@ public class Main {
     ##USER_CODE_HERE##
 
     public static void main(String[] args) {
-        String filePath = "/dev/problems/${this.problemName.toLowerCase().replace(" ", "-")}/tests/inputs/##INPUT_FILE_INDEX##.txt"; 
-        List<String> lines = readLinesFromFile(filePath);
+        // The judge pipes the testcase in on stdin.
+        List<String> lines = readLinesFromStdin();
         ${inputReads}
         ${functionCall}
         ${outputWrite}
     }
-    public static List<String> readLinesFromFile(String filePath) {
+
+    public static List<String> readLinesFromStdin() {
         List<String> lines = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in))) {
             String line;
             while ((line = br.readLine()) != null) {
                 lines.add(line);
@@ -171,7 +186,8 @@ public class Main {
 
     return `##USER_CODE_HERE##
 
-const input = require('fs').readFileSync('/dev/problems/${this.problemName.toLowerCase().replace(" ", "-")}/tests/inputs/##INPUT_FILE_INDEX##.txt', 'utf8').trim().split('\\n').join(' ').split(' ');
+// The judge pipes the testcase in on stdin; fd 0 is that pipe.
+const input = require('fs').readFileSync(0, 'utf8').trim().split('\\n').join(' ').split(/\\s+/);
 ${inputReads}
 ${functionCall}
 ${outputWrite}
@@ -198,14 +214,15 @@ ${outputWrite}
     const functionCall = `let result = ${this.functionName}(${this.inputFields.map((field) => field.name).join(", ")});`;
     const outputWrite = `println!("{}", result);`;
 
-    return `use std::fs::read_to_string;
-use std::io::{self};
+    return `use std::io::{self, Read};
 use std::str::Lines;
 
 ##USER_CODE_HERE##
 
 fn main() -> io::Result<()> {
-  let input = read_to_string("/dev/problems/${this.problemName.toLowerCase().replace(" ", "-")}/tests/inputs/##INPUT_FILE_INDEX##.txt")?;
+  // The judge pipes the testcase in on stdin.
+  let mut input = String::new();
+  io::stdin().read_to_string(&mut input)?;
   let mut lines = input.lines();
   ${inputReads}
   ${functionCall}

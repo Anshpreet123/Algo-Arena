@@ -36,7 +36,6 @@ function generatePartialBoilerplate(generatorFilePath: string) {
   fs.writeFileSync(path.join(boilerplatePath, "function.rs"), rustCode);
   fs.writeFileSync(path.join(boilerplatePath, "function.java"), javaCode);
 
-  console.log("Boilerplate code generated successfully!");
 }
 
 function generateFullBoilerPLate(generatorFilePath: string) {
@@ -70,56 +69,37 @@ function generateFullBoilerPLate(generatorFilePath: string) {
   fs.writeFileSync(path.join(boilerplatePath, "function.rs"), rustCode);
   fs.writeFileSync(path.join(boilerplatePath, "function.java"), javaCode);
 
-  console.log("Boilerplate code generated successfully!");
 }
 
-const getFolders = (dir: string) => {
-  return new Promise((resolve, reject) => {
-    fs.readdir(dir, (err, files) => {
-      if (err) {
-        return reject(err);
-      }
+const DEFAULT_PROBLEMS_DIR = path.join(__dirname, "../../problems");
 
-      const folders: string[] = [];
-      let pending = files.length;
+async function main() {
+  const problemsDir = process.env.PROBLEMS_DIR_PATH || DEFAULT_PROBLEMS_DIR;
 
-      if (!pending) return resolve(folders);
+  if (!fs.existsSync(problemsDir)) {
+    console.error(`Problems directory not found: ${problemsDir}`);
+    console.error("Set PROBLEMS_DIR_PATH in apps/boilerplate-generator/.env");
+    process.exit(1);
+  }
 
-      files.forEach(file => {
-        const filePath = path.join(dir, file);
-        fs.stat(filePath, (err, stats) => {
-          if (err) {
-            return reject(err);
-          }
+  const folders = fs
+    .readdirSync(problemsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
 
-          if (stats.isDirectory()) {
-            folders.push(file);
-          }
+  for (const folder of folders) {
+    const problemPath = path.join(problemsDir, folder);
+    if (!fs.existsSync(path.join(problemPath, "Structure.md"))) {
+      console.warn(`Skipping ${folder}: no Structure.md`);
+      continue;
+    }
+    generatePartialBoilerplate(problemPath);
+    generateFullBoilerPLate(problemPath);
+    console.log(`Generated boilerplate for ${folder}`);
+  }
 
-          if (!--pending) {
-            resolve(folders);
-          }
-        });
-      });
-    });
-  });
-};
-function main() {
-  fs.readdir(process.env.PROBLEMS_DIR_PATH || "", (err, files) => {
-    files.forEach(file => {
-      if (file)
-        generatePartialBoilerplate(path.join(process.env.PROBLEMS_DIR_PATH || "", file));
-      generateFullBoilerPLate(path.join(process.env.PROBLEMS_DIR_PATH || "", file));
-    })
-  })
+  console.log(`
+Done: ${folders.length} problem(s) processed.`);
 }
-if (!process.env.PROBLEMS_DIR_PATH) {
-  console.log("Store a valid problems dir path in .env", process.env.PROBLEMS_DIR_PATH);
-} else {
-  getFolders(process.env.PROBLEMS_DIR_PATH).then((folders: any) => {
-    folders.forEach((folder: string) => {
-      generatePartialBoilerplate(path.join(process.env.PROBLEMS_DIR_PATH || "", folder));
-      generateFullBoilerPLate(path.join(process.env.PROBLEMS_DIR_PATH || "", folder));
-    });
-  })
-}
+
+main();
